@@ -5,6 +5,7 @@ import type { Segment } from '../types'
 import {
   BAR_CELLS,
   DEFAULT_THRESHOLD,
+  HATCH_CELLS,
   HATCH_COLOR,
   HATCH_GLYPH,
   ZONE_COLOR,
@@ -102,12 +103,12 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" justifyContent="space-between">
-          <Box flexDirection="row">
+          <Box flexDirection="row" flexGrow={1} marginRight={2}>
             <Text bold>Context</Text>
             <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
               {`  ${count} of ${formatTokens(threshold)}  `}
             </Text>
-            <Box flexDirection="row" width={BAR_CELLS} height={1}>
+            <Box flexDirection="row" flexGrow={1} minWidth={BAR_CELLS} height={1}>
               {barFills({ tokens: level, threshold, segments: rows }).map(fill =>
                 fill.isTrack ? (
                   <Box
@@ -117,8 +118,8 @@ export const register: Register = (on, options) => {
                     backgroundColor={fill.color}
                     overflow="hidden"
                   >
-                    <Box width={BAR_CELLS} flexShrink={0}>
-                      <Text color={HATCH_COLOR}>{HATCH_GLYPH.repeat(BAR_CELLS)}</Text>
+                    <Box width={HATCH_CELLS} flexShrink={0}>
+                      <Text color={HATCH_COLOR}>{HATCH_GLYPH.repeat(HATCH_CELLS)}</Text>
                     </Box>
                   </Box>
                 ) : (

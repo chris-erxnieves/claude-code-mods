@@ -4,6 +4,7 @@ import type { Segment } from '../types'
 
 export const DEFAULT_THRESHOLD = 150_000
 export const BAR_CELLS = 20
+export const HATCH_CELLS = 512
 export const WARN_RATIO = 0.8
 
 export type Zone = 'ok' | 'warn' | 'over'
