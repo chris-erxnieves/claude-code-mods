@@ -5,6 +5,8 @@ import type { Segment } from '../types'
 import {
   BAR_CELLS,
   DEFAULT_THRESHOLD,
+  HATCH_COLOR,
+  HATCH_GLYPH,
   ZONE_COLOR,
   barFills,
   evaluateAlert,
@@ -22,6 +24,7 @@ async function refreshSegments($: EngineInterface) {
   const rows: Segment[] = (context.breakdown?.categories ?? [])
     .filter(category => category.kind === 'used' && category.tokens > 0)
     .map(({ name, color, tokens }) => ({ name, color, tokens }))
+    .sort((a, b) => b.tokens - a.tokens)
   await update($, segments, () => rows)
 }
 
@@ -95,7 +98,6 @@ export const register: Register = (on, options) => {
     const rows = await read($, segments)
     const level = current ?? 0
     const count = (current === null ? '—' : formatTokens(current)).padStart(4)
-    const nameWidth = Math.max(0, ...(rows ?? []).map(row => row.name.length))
 
     return (
       <Box flexDirection="column">
@@ -106,9 +108,17 @@ export const register: Register = (on, options) => {
               {`  ${count} of ${formatTokens(threshold)}  `}
             </Text>
             <Box flexDirection="row" width={BAR_CELLS} height={1}>
-              {barFills({ tokens: level, threshold, segments: rows }).map(fill => (
-                <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} />
-              ))}
+              {barFills({ tokens: level, threshold, segments: rows }).map(fill =>
+                fill.isTrack ? (
+                  <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} overflow="hidden">
+                    <Box width={BAR_CELLS} flexShrink={0}>
+                      <Text color={HATCH_COLOR}>{HATCH_GLYPH.repeat(BAR_CELLS)}</Text>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} />
+                ),
+              )}
             </Box>
           </Box>
           <Button
@@ -119,14 +129,17 @@ export const register: Register = (on, options) => {
           />
         </Box>
         {expanded && rows === null && <Text dimColor>  measuring…</Text>}
-        {expanded &&
-          rows?.map(row => (
-            <Box flexDirection="row">
-              <Text color={row.color}>  ■ </Text>
-              <Text>{row.name.padEnd(nameWidth)}  </Text>
-              <Text dimColor>~{formatTokens(row.tokens).padStart(6)}</Text>
-            </Box>
-          ))}
+        {expanded && rows !== null && (
+          <Box flexDirection="row" flexWrap="wrap" columnGap={3} paddingLeft={2}>
+            {rows.map(row => (
+              <Box flexDirection="row" flexShrink={0} gap={1}>
+                <Text color={row.color}>■</Text>
+                <Text>{row.name}</Text>
+                <Text dimColor>{formatTokens(row.tokens)}</Text>
+              </Box>
+            ))}
+          </Box>
+        )}
       </Box>
     )
   })

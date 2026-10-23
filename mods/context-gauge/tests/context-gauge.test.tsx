@@ -68,32 +68,35 @@ test('the bar fills by category share of the used fraction', () => {
     { name: 'b', color: 'y', tokens: 1_000 },
   ]
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments })).toEqual([
-    { color: 'x', percent: 37.5 },
-    { color: 'y', percent: 12.5 },
-    { color: 'inverseText', percent: 50 },
+    { color: 'x', percent: 37.5, isTrack: false },
+    { color: 'y', percent: 12.5, isTrack: false },
+    { color: 'inverseText', percent: 50, isTrack: true },
   ])
-  expect(barFills({ tokens: 0, threshold: 150_000, segments })).toEqual([{ color: 'inverseText', percent: 100 }])
+  expect(barFills({ tokens: 0, threshold: 150_000, segments })).toEqual([
+    { color: 'inverseText', percent: 100, isTrack: true },
+  ])
 })
 
 test('the fill is one neutral color before the breakdown arrives', () => {
   const half = [
-    { color: 'inactive', percent: 50 },
-    { color: 'inverseText', percent: 50 },
+    { color: 'inactive', percent: 50, isTrack: false },
+    { color: 'inverseText', percent: 50, isTrack: true },
   ]
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: null })).toEqual(half)
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: [] })).toEqual(half)
 })
 
 test('past the threshold the bar is full with nothing after it', () => {
-  const full = [{ color: 'inactive', percent: 100 }]
+  const full = [{ color: 'inactive', percent: 100, isTrack: false }]
   expect(barFills({ tokens: 150_000, threshold: 150_000, segments: null })).toEqual(full)
   expect(barFills({ tokens: 163_000, threshold: 150_000, segments: null })).toEqual(full)
   expect(barFills({ tokens: 900_000, threshold: 150_000, segments: null })).toEqual(full)
 })
 
-test('token counts read short', () => {
+test('token counts read as whole numbers', () => {
   expect(formatTokens(950)).toBe('950')
-  expect(formatTokens(88_200)).toBe('88.2k')
+  expect(formatTokens(3_100)).toBe('3k')
+  expect(formatTokens(88_500)).toBe('89k')
   expect(formatTokens(4_000)).toBe('4k')
   expect(formatTokens(150_000)).toBe('150k')
 })
@@ -123,12 +126,13 @@ test('the band shows a dash before the first response, then the count', async ($
       Number(boxes.find(found => found.props.backgroundColor === color)?.props.flexGrow)
     expect(Math.round(weight('permission') + weight('promptBorder') + weight('inverseText'))).toBe(100)
     expect(Math.round(weight('inverseText') * 1000)).toBe(30_667)
+    expect((await ui.find({ type: 'Text', text: /╲/ }))?.props.color).toBe('subtle')
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }
 })
 
-test('details toggle a legend of used categories only', async ($, on) => {
+test('details toggle a legend of used categories, largest first', async ($, on) => {
   const state: { tokens?: number; toasts: string[] } = { tokens: 124_000, toasts: [] }
   engine(on, state)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
@@ -139,10 +143,14 @@ test('details toggle a legend of used categories only', async ($, on) => {
 
     expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Hide')
     expect((await ui.find({ type: 'Text', text: /of 150k/ }))?.props.color).toBe('warning')
-    const names = (await ui.findAll({ type: 'Text' })).map(found => found.text)
-    expect(names.some(text => text.startsWith('System prompt'))).toBe(true)
-    expect(names.some(text => text.startsWith('Messages'))).toBe(true)
-    expect(names.some(text => /Free space|Autocompact|deferred/.test(text))).toBe(false)
+    const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
+    expect(texts.indexOf('Messages')).toBeGreaterThan(-1)
+    expect(texts.indexOf('Messages')).toBeLessThan(texts.indexOf('System prompt'))
+    expect(texts).toContain('88k')
+    expect(texts).toContain('3k')
+    expect(texts.some(text => /~|Free space|Autocompact|deferred/.test(text))).toBe(false)
+    const fills = (await ui.findAll({ type: 'Box' })).map(found => found.props.backgroundColor)
+    expect(fills.indexOf('permission')).toBeLessThan(fills.indexOf('promptBorder'))
 
     await ui.press({ key: 'toggle' })
     expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
