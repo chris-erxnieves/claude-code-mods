@@ -1,10 +1,9 @@
-import type { Color, ThemeKey } from 'claude-code'
+import type { ThemeKey } from 'claude-code'
 
 import type { Segment } from '../types'
 
 export const DEFAULT_THRESHOLD = 150_000
 export const BAR_CELLS = 20
-export const HATCH_CELLS = 512
 export const DESKTOP_BAR_HEIGHT = '85%'
 export const WARN_RATIO = 0.8
 
@@ -16,13 +15,9 @@ export const ZONE_COLOR = {
   over: 'error',
 } as const satisfies Record<Zone, ThemeKey>
 
-export const TRACK_COLOR: ThemeKey = 'inactive'
-export const HATCH_COLOR: Color = '#bfbfbf'
-export const HATCH_GLYPH = '╲'
-export const OUTLINE_COLOR: ThemeKey = 'inactive'
 export const PENDING_COLOR: ThemeKey = 'subtle'
 
-export type Fill = { color: string; percent: number; isTrack: boolean }
+export type Fill = { color?: string; percent: number; isTrack: boolean }
 
 type Level = { tokens: number; threshold: number }
 
@@ -50,7 +45,7 @@ export const barFills = ({
         }))
       : [{ color: PENDING_COLOR, percent: filled, isTrack: false }]
 
-  return [...fills, { color: TRACK_COLOR, percent: 100 - filled, isTrack: true }].filter(
+  return [...fills, { percent: 100 - filled, isTrack: true }].filter(
     fill => fill.percent > 0,
   )
 }
