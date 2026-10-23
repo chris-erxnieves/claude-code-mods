@@ -10,7 +10,7 @@ Context  163k of 150k  ███████████████████
 ```
 
 - **Count** is **green** below 80% of the threshold, **yellow** from 80% to the threshold, **red** past it.
-- **Bar** is split by category color (see [Details](#details)), filling in eighths of a cell as usage approaches the threshold, over a solid `subtle` track. Each cell is painted as a background, so colors run without seams; a cell holds at most two colors, so a category narrower than a cell can drop out. Until the first breakdown arrives, the fill is solid `inactive`. Past the threshold the bar stays full; the red count is the only signal.
+- **Bar** is split by category color (see [Details](#details)), each category as wide as its share of usage against the threshold, over a recessed `inverseText` track. Segments are colored boxes sized by `flexGrow`, not glyphs, so the desktop app draws every edge to the pixel. Until the first breakdown arrives, the fill is solid `inactive`. Past the threshold the bar stays full; the red count is the only signal.
 - **`—`** before the first response of a session and right after a compaction, until the next response reports a count.
 - **Toast** once when the session crosses the threshold. It fires again only after usage drops below 80% (say, after `/compact`) and climbs back over. The mod never compacts by itself.
 
