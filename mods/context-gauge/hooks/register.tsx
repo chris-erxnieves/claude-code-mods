@@ -9,6 +9,7 @@ import {
   HATCH_CELLS,
   HATCH_COLOR,
   HATCH_GLYPH,
+  OUTLINE_COLOR,
   ZONE_COLOR,
   barFills,
   evaluateAlert,
@@ -100,7 +101,8 @@ export const register: Register = (on, options) => {
     const rows = await read($, segments)
     const level = current ?? 0
     const count = (current === null ? '—' : formatTokens(current)).padStart(4)
-    const barHeight = e.surface === 'desktop' ? DESKTOP_BAR_HEIGHT : 1
+    const isDesktop = e.surface === 'desktop'
+    const barHeight = isDesktop ? DESKTOP_BAR_HEIGHT : 1
 
     return (
       <Box flexDirection="column">
@@ -112,7 +114,15 @@ export const register: Register = (on, options) => {
             </Text>
             <Box flexDirection="row" flexGrow={1} minWidth={BAR_CELLS} height={1} alignItems="center">
               {barFills({ tokens: level, threshold, segments: rows }).map(fill =>
-                fill.isTrack ? (
+                fill.isTrack && isDesktop ? (
+                  <Box
+                    width={0}
+                    flexGrow={fill.percent}
+                    height={barHeight}
+                    borderStyle="single"
+                    borderColor={OUTLINE_COLOR}
+                  />
+                ) : fill.isTrack ? (
                   <Box
                     width={0}
                     flexGrow={fill.percent}

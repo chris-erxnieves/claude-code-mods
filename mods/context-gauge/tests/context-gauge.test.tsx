@@ -124,16 +124,26 @@ test('the band shows a dash before the first response, then the count', async ($
     const boxes = await ui.findAll({ type: 'Box' })
     const weight = (color: string) =>
       Number(boxes.find(found => found.props.backgroundColor === color)?.props.flexGrow)
-    expect(Math.round(weight('permission') + weight('promptBorder') + weight('inactive'))).toBe(100)
-    expect(Math.round(weight('inactive') * 1000)).toBe(30_667)
-    expect(boxes.find(found => found.props.backgroundColor === 'inactive')?.props.width).toBe(0)
+    const track = boxes.find(found =>
+      surface === 'desktop' ? found.props.borderStyle !== undefined : found.props.backgroundColor === 'inactive',
+    )
+    expect(Math.round(weight('permission') + weight('promptBorder') + Number(track?.props.flexGrow))).toBe(100)
+    expect(Math.round(Number(track?.props.flexGrow) * 1000)).toBe(30_667)
+    expect(track?.props.width).toBe(0)
     expect(boxes.find(found => found.props.backgroundColor === 'permission')?.props.height).toBe(surface === 'desktop' ? '85%' : 1)
     const bar = boxes.find(found => found.props.minWidth !== undefined)
     expect(bar?.props.minWidth).toBe(20)
     expect(bar?.props.flexGrow).toBe(1)
     const hatch = await ui.find({ type: 'Text', text: /╲/ })
-    expect(hatch?.props.color).toBe('#bfbfbf')
-    expect([...(hatch?.text ?? '')]).toHaveLength(512)
+    if (surface === 'desktop') {
+      expect(track?.props.borderStyle).toBe('single')
+      expect(track?.props.borderColor).toBe('inactive')
+      expect(track?.props.backgroundColor).toBeUndefined()
+      expect(hatch).toBeUndefined()
+    } else {
+      expect(hatch?.props.color).toBe('#bfbfbf')
+      expect([...(hatch?.text ?? '')]).toHaveLength(512)
+    }
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }

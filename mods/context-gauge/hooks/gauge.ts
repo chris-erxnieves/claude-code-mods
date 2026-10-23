@@ -19,6 +19,7 @@ export const ZONE_COLOR = {
 export const TRACK_COLOR: ThemeKey = 'inactive'
 export const HATCH_COLOR: Color = '#bfbfbf'
 export const HATCH_GLYPH = '╲'
+export const OUTLINE_COLOR: ThemeKey = 'inactive'
 export const PENDING_COLOR: ThemeKey = 'subtle'
 
 export type Fill = { color: string; percent: number; isTrack: boolean }
