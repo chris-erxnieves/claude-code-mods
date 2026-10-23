@@ -5,6 +5,7 @@ import type { Segment } from '../types'
 import {
   BAR_CELLS,
   DEFAULT_THRESHOLD,
+  DESKTOP_BAR_HEIGHT,
   HATCH_CELLS,
   HATCH_COLOR,
   HATCH_GLYPH,
@@ -99,6 +100,7 @@ export const register: Register = (on, options) => {
     const rows = await read($, segments)
     const level = current ?? 0
     const count = (current === null ? '—' : formatTokens(current)).padStart(4)
+    const barHeight = e.surface === 'desktop' ? DESKTOP_BAR_HEIGHT : 1
 
     return (
       <Box flexDirection="column">
@@ -108,13 +110,13 @@ export const register: Register = (on, options) => {
             <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
               {`  ${count} of ${formatTokens(threshold)}  `}
             </Text>
-            <Box flexDirection="row" flexGrow={1} minWidth={BAR_CELLS} height={1}>
+            <Box flexDirection="row" flexGrow={1} minWidth={BAR_CELLS} height={1} alignItems="center">
               {barFills({ tokens: level, threshold, segments: rows }).map(fill =>
                 fill.isTrack ? (
                   <Box
                     width={0}
                     flexGrow={fill.percent}
-                    height={1}
+                    height={barHeight}
                     backgroundColor={fill.color}
                     overflow="hidden"
                   >
@@ -123,7 +125,7 @@ export const register: Register = (on, options) => {
                     </Box>
                   </Box>
                 ) : (
-                  <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} />
+                  <Box flexGrow={fill.percent} height={barHeight} backgroundColor={fill.color} />
                 ),
               )}
             </Box>
@@ -135,9 +137,9 @@ export const register: Register = (on, options) => {
             onPress={() => update($, isExpanded, value => !value)}
           />
         </Box>
-        {expanded && rows === null && <Text dimColor>measuring…</Text>}
+        {expanded && rows === null && <Box marginTop={1}><Text dimColor>measuring…</Text></Box>}
         {expanded && rows !== null && (
-          <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
+          <Box flexDirection="row" flexWrap="wrap" columnGap={2} marginTop={1}>
             {rows.map(row => (
               <Box flexDirection="row" flexShrink={0} gap={1}>
                 <Text color={row.color}>■</Text>

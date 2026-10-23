@@ -70,24 +70,24 @@ test('the bar fills by category share of the used fraction', () => {
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments })).toEqual([
     { color: 'x', percent: 37.5, isTrack: false },
     { color: 'y', percent: 12.5, isTrack: false },
-    { color: 'inverseText', percent: 50, isTrack: true },
+    { color: 'inactive', percent: 50, isTrack: true },
   ])
   expect(barFills({ tokens: 0, threshold: 150_000, segments })).toEqual([
-    { color: 'inverseText', percent: 100, isTrack: true },
+    { color: 'inactive', percent: 100, isTrack: true },
   ])
 })
 
 test('the fill is one neutral color before the breakdown arrives', () => {
   const half = [
-    { color: 'inactive', percent: 50, isTrack: false },
-    { color: 'inverseText', percent: 50, isTrack: true },
+    { color: 'subtle', percent: 50, isTrack: false },
+    { color: 'inactive', percent: 50, isTrack: true },
   ]
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: null })).toEqual(half)
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: [] })).toEqual(half)
 })
 
 test('past the threshold the bar is full with nothing after it', () => {
-  const full = [{ color: 'inactive', percent: 100, isTrack: false }]
+  const full = [{ color: 'subtle', percent: 100, isTrack: false }]
   expect(barFills({ tokens: 150_000, threshold: 150_000, segments: null })).toEqual(full)
   expect(barFills({ tokens: 163_000, threshold: 150_000, segments: null })).toEqual(full)
   expect(barFills({ tokens: 900_000, threshold: 150_000, segments: null })).toEqual(full)
@@ -124,14 +124,15 @@ test('the band shows a dash before the first response, then the count', async ($
     const boxes = await ui.findAll({ type: 'Box' })
     const weight = (color: string) =>
       Number(boxes.find(found => found.props.backgroundColor === color)?.props.flexGrow)
-    expect(Math.round(weight('permission') + weight('promptBorder') + weight('inverseText'))).toBe(100)
-    expect(Math.round(weight('inverseText') * 1000)).toBe(30_667)
-    expect(boxes.find(found => found.props.backgroundColor === 'inverseText')?.props.width).toBe(0)
+    expect(Math.round(weight('permission') + weight('promptBorder') + weight('inactive'))).toBe(100)
+    expect(Math.round(weight('inactive') * 1000)).toBe(30_667)
+    expect(boxes.find(found => found.props.backgroundColor === 'inactive')?.props.width).toBe(0)
+    expect(boxes.find(found => found.props.backgroundColor === 'permission')?.props.height).toBe(surface === 'desktop' ? '85%' : 1)
     const bar = boxes.find(found => found.props.minWidth !== undefined)
     expect(bar?.props.minWidth).toBe(20)
     expect(bar?.props.flexGrow).toBe(1)
     const hatch = await ui.find({ type: 'Text', text: /╲/ })
-    expect(hatch?.props.color).toBe('subtle')
+    expect(hatch?.props.color).toBe('#bfbfbf')
     expect([...(hatch?.text ?? '')]).toHaveLength(512)
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
@@ -157,6 +158,7 @@ test('details toggle a legend of used categories, largest first', async ($, on) 
     expect(texts.some(text => /~|Free space|Autocompact|deferred/.test(text))).toBe(false)
     const fills = (await ui.findAll({ type: 'Box' })).map(found => found.props.backgroundColor)
     expect(fills.indexOf('permission')).toBeLessThan(fills.indexOf('promptBorder'))
+    expect((await ui.findAll({ type: 'Box' })).find(found => found.props.flexWrap === 'wrap')?.props.marginTop).toBe(1)
 
     await ui.press({ key: 'toggle' })
     expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
