@@ -126,6 +126,7 @@ test('the band shows a dash before the first response, then the count', async ($
       Number(boxes.find(found => found.props.backgroundColor === color)?.props.flexGrow)
     expect(Math.round(weight('permission') + weight('promptBorder') + weight('inverseText'))).toBe(100)
     expect(Math.round(weight('inverseText') * 1000)).toBe(30_667)
+    expect(boxes.find(found => found.props.backgroundColor === 'inverseText')?.props.width).toBe(0)
     expect((await ui.find({ type: 'Text', text: /╲/ }))?.props.color).toBe('subtle')
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()

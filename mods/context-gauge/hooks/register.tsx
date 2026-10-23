@@ -110,7 +110,13 @@ export const register: Register = (on, options) => {
             <Box flexDirection="row" width={BAR_CELLS} height={1}>
               {barFills({ tokens: level, threshold, segments: rows }).map(fill =>
                 fill.isTrack ? (
-                  <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} overflow="hidden">
+                  <Box
+                    width={0}
+                    flexGrow={fill.percent}
+                    height={1}
+                    backgroundColor={fill.color}
+                    overflow="hidden"
+                  >
                     <Box width={BAR_CELLS} flexShrink={0}>
                       <Text color={HATCH_COLOR}>{HATCH_GLYPH.repeat(BAR_CELLS)}</Text>
                     </Box>
