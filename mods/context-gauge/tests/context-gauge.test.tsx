@@ -2,7 +2,7 @@ import type { ContextCategory, SessionContextBreakdown, SessionUsage } from 'cla
 import { expect, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import { allocateCells, barRuns, formatTokens, zoneOf } from '../hooks/gauge'
+import { allocateEighths, barRuns, formatTokens, zoneOf } from '../hooks/gauge'
 
 const SURFACES = ['terminal', 'desktop'] as const
 
@@ -62,45 +62,60 @@ test('zone boundaries sit at 80% and past the threshold', () => {
   expect(zoneOf({ tokens: 150_001, threshold })).toBe('over')
 })
 
-test('cells go by largest remainder and a sliver gets none', () => {
+test('eighths go by largest remainder and a sliver gets none', () => {
   const segments = [
     { name: 'a', color: 'x', tokens: 88_000 },
     { name: 'b', color: 'y', tokens: 17_000 },
     { name: 'c', color: 'z', tokens: 3_000 },
   ]
-  const counts = allocateCells({ segments, cells: 14 })
+  const counts = allocateEighths({ segments, eighths: 14 })
   expect(counts.reduce((sum, n) => sum + n, 0)).toBe(14)
   expect(counts).toEqual([12, 2, 0])
-  expect(allocateCells({ segments, cells: 3 })).toEqual([2, 1, 0])
+  expect(allocateEighths({ segments, eighths: 3 })).toEqual([2, 1, 0])
 })
 
-test('the bar fills by category, or with dim cells before the breakdown arrives', () => {
+test('the bar fills by category in eighths of a cell over a solid track', () => {
   const segments = [
     { name: 'a', color: 'x', tokens: 90_000 },
     { name: 'b', color: 'y', tokens: 14_000 },
   ]
   expect(barRuns({ tokens: 104_000, threshold: 150_000, segments })).toEqual([
-    { text: '█'.repeat(12), color: 'x' },
-    { text: '██', color: 'y' },
-    { text: '░'.repeat(6), isDim: true },
+    { text: ' '.repeat(12), backgroundColor: 'x' },
+    { text: ' ', backgroundColor: 'y' },
+    { text: '▉', color: 'y', backgroundColor: 'subtle' },
+    { text: ' '.repeat(6), backgroundColor: 'subtle' },
   ])
-  expect(barRuns({ tokens: 104_000, threshold: 150_000, segments: null })).toEqual([
-    { text: '▒'.repeat(14) + '░'.repeat(6), isDim: true },
+  expect(barRuns({ tokens: 500, threshold: 150_000, segments })).toEqual([
+    { text: '▏', color: 'x', backgroundColor: 'subtle' },
+    { text: ' '.repeat(19), backgroundColor: 'subtle' },
   ])
 })
 
-test('past the threshold the bar ends in a gap and one red nub', () => {
-  const text = (tokens: number) =>
-    barRuns({ tokens, threshold: 150_000, segments: null })
-      .map(run => run.text)
-      .join('')
-  expect(text(150_000)).toBe('▒'.repeat(20))
-  expect(text(163_000)).toBe('▒'.repeat(20) + ' ▌')
-  expect(text(900_000)).toBe('▒'.repeat(20) + ' ▌')
-  expect(barRuns({ tokens: 163_000, threshold: 150_000, segments: null }).at(-1)).toEqual({
-    text: '▌',
-    color: 'error',
-  })
+test('the fill is one neutral color before the breakdown arrives', () => {
+  expect(barRuns({ tokens: 104_000, threshold: 150_000, segments: null })).toEqual([
+    { text: ' '.repeat(13), backgroundColor: 'inactive' },
+    { text: '▉', color: 'inactive', backgroundColor: 'subtle' },
+    { text: ' '.repeat(6), backgroundColor: 'subtle' },
+  ])
+})
+
+test('a cell shows its left and right colors and drops a segment between them', () => {
+  const segments = [
+    { name: 'a', color: 'x', tokens: 3 },
+    { name: 'b', color: 'y', tokens: 2 },
+    { name: 'c', color: 'z', tokens: 155 },
+  ]
+  expect(barRuns({ tokens: 160, threshold: 160, segments })).toEqual([
+    { text: '▍', color: 'x', backgroundColor: 'z' },
+    { text: ' '.repeat(19), backgroundColor: 'z' },
+  ])
+})
+
+test('past the threshold the bar is full with nothing after it', () => {
+  const full = [{ text: ' '.repeat(20), backgroundColor: 'inactive' }]
+  expect(barRuns({ tokens: 150_000, threshold: 150_000, segments: null })).toEqual(full)
+  expect(barRuns({ tokens: 163_000, threshold: 150_000, segments: null })).toEqual(full)
+  expect(barRuns({ tokens: 900_000, threshold: 150_000, segments: null })).toEqual(full)
 })
 
 test('token counts read short', () => {
@@ -130,7 +145,9 @@ test('the band shows a dash before the first response, then the count', async ($
     expect(count?.text).toContain('104k of 150k')
     expect(count?.props.color).toBe('success')
     expect((await ui.find({ type: 'Text', text: 'Context' }))?.props.bold).toBe(true)
-    expect((await ui.find({ type: 'Text', text: /█/ }))?.props.color).toBe('permission')
+    const fills = (await ui.findAll({ type: 'Text' })).map(found => found.props.backgroundColor)
+    expect(fills).toContain('permission')
+    expect(fills).toContain('subtle')
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }

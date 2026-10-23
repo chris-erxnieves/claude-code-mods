@@ -105,7 +105,7 @@ export const register: Register = (on, options) => {
               {`  ${count} of ${formatTokens(threshold)}  `}
             </Text>
             {barRuns({ tokens: level, threshold, segments: rows }).map(run => (
-              <Text color={run.color} dimColor={run.isDim}>
+              <Text color={run.color} backgroundColor={run.backgroundColor} mono>
                 {run.text}
               </Text>
             ))}

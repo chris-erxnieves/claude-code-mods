@@ -4,6 +4,8 @@ import type { Segment } from '../types'
 
 export const DEFAULT_THRESHOLD = 150_000
 export const BAR_CELLS = 20
+export const EIGHTHS_PER_CELL = 8
+export const BAR_EIGHTHS = BAR_CELLS * EIGHTHS_PER_CELL
 export const WARN_RATIO = 0.8
 
 export type Zone = 'ok' | 'warn' | 'over'
@@ -14,7 +16,12 @@ export const ZONE_COLOR = {
   over: 'error',
 } as const satisfies Record<Zone, ThemeKey>
 
-export type Run = { text: string; color?: string; isDim?: boolean }
+export const TRACK_COLOR: ThemeKey = 'subtle'
+export const PENDING_COLOR: ThemeKey = 'inactive'
+
+const LEFT_EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'] as const
+
+export type Run = { text: string; color?: string; backgroundColor?: string }
 
 type Level = { tokens: number; threshold: number }
 
@@ -26,25 +33,25 @@ export const zoneOf = ({ tokens, threshold }: Level): Zone => {
   return tokens >= threshold * WARN_RATIO ? 'warn' : 'ok'
 }
 
-export const filledCells = ({ tokens, threshold }: Level): number =>
-  Math.min(BAR_CELLS, Math.round((tokens / threshold) * BAR_CELLS))
+export const filledEighths = ({ tokens, threshold }: Level): number =>
+  Math.min(BAR_EIGHTHS, Math.round((tokens / threshold) * BAR_EIGHTHS))
 
-export const allocateCells = ({
+export const allocateEighths = ({
   segments,
-  cells,
+  eighths,
 }: {
   segments: readonly Segment[]
-  cells: number
+  eighths: number
 }): number[] => {
   const total = segments.reduce((sum, segment) => sum + segment.tokens, 0)
 
-  if (total === 0 || cells === 0) {
+  if (total === 0 || eighths === 0) {
     return segments.map(() => 0)
   }
 
-  const exact = segments.map(segment => (segment.tokens / total) * cells)
+  const exact = segments.map(segment => (segment.tokens / total) * eighths)
   const counts = exact.map(Math.floor)
-  let remaining = cells - counts.reduce((sum, count) => sum + count, 0)
+  let remaining = eighths - counts.reduce((sum, count) => sum + count, 0)
   const byRemainder = exact
     .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
     .sort((a, b) => b.remainder - a.remainder)
@@ -63,7 +70,7 @@ export const allocateCells = ({
 const mergeRuns = (cells: readonly Run[]): Run[] =>
   cells.reduce<Run[]>((runs, cell) => {
     const last = runs.at(-1)
-    if (last && last.color === cell.color && last.isDim === cell.isDim) {
+    if (last && last.color === cell.color && last.backgroundColor === cell.backgroundColor) {
       runs[runs.length - 1] = { ...last, text: last.text + cell.text }
     } else {
       runs.push(cell)
@@ -71,27 +78,38 @@ const mergeRuns = (cells: readonly Run[]): Run[] =>
     return runs
   }, [])
 
+const cellRun = (eighths: readonly string[]): Run => {
+  const left = eighths[0] ?? TRACK_COLOR
+  const leading = eighths.findIndex(color => color !== left)
+
+  if (leading === -1) {
+    return { text: ' ', backgroundColor: left }
+  }
+
+  return { text: LEFT_EIGHTHS[leading] ?? ' ', color: left, backgroundColor: eighths.at(-1) }
+}
+
 export const barRuns = ({
   tokens,
   threshold,
   segments,
 }: Level & { segments: readonly Segment[] | null }): Run[] => {
-  const filled = filledCells({ tokens, threshold })
-  const cells: Run[] = segments?.length
-    ? allocateCells({ segments, cells: filled }).flatMap((count, index) =>
-        Array<Run>(count).fill({ text: '█', color: segments[index]?.color }),
+  const filled = filledEighths({ tokens, threshold })
+  const eighths: string[] = segments?.length
+    ? allocateEighths({ segments, eighths: filled }).flatMap((count, index) =>
+        Array<string>(count).fill(segments[index]?.color ?? PENDING_COLOR),
       )
-    : Array<Run>(filled).fill({ text: '▒', isDim: true })
+    : Array<string>(filled).fill(PENDING_COLOR)
 
-  for (let cell = filled; cell < BAR_CELLS; cell += 1) {
-    cells.push({ text: '░', isDim: true })
+  while (eighths.length < BAR_EIGHTHS) {
+    eighths.push(TRACK_COLOR)
   }
 
-  if (zoneOf({ tokens, threshold }) === 'over') {
-    cells.push({ text: ' ' }, { text: '▌', color: ZONE_COLOR.over })
-  }
-
-  return mergeRuns(cells)
+  return mergeRuns(
+    Array.from({ length: BAR_CELLS }, (_, cell) =>
+      cellRun(eighths.slice(cell * EIGHTHS_PER_CELL, (cell + 1) * EIGHTHS_PER_CELL)),
+    ),
+  )
 }
 
 export const formatTokens = (tokens: number): string => {
