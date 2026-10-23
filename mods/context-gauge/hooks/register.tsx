@@ -2,16 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Segment } from '../types'
-import {
-  BAR_CELLS,
-  DEFAULT_THRESHOLD,
-  DESKTOP_BAR_HEIGHT,
-  ZONE_COLOR,
-  barFills,
-  evaluateAlert,
-  formatTokens,
-  zoneOf,
-} from './gauge'
+import { DEFAULT_THRESHOLD, bandView, evaluateAlert, formatTokens } from './gauge'
+
+const BAR_CELLS = 20
 
 const tokens = atom({ plugin: 'context-gauge', key: 'tokens' } as const, null)
 const isExpanded = atom({ plugin: 'context-gauge', key: 'isExpanded' } as const, false)
@@ -92,42 +85,41 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Button, Text } = $.ui.resolve(e)
-    const current = await read($, tokens)
-    const expanded = await read($, isExpanded)
-    const rows = await read($, segments)
-    const level = current ?? 0
-    const count = (current === null ? '—' : formatTokens(current)).padStart(4)
-    const barHeight = e.surface === 'desktop' ? DESKTOP_BAR_HEIGHT : 1
+    const view = bandView({
+      tokens: await read($, tokens),
+      threshold,
+      segments: await read($, segments),
+      isExpanded: await read($, isExpanded),
+      surface: e.surface,
+    })
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" justifyContent="space-between">
           <Box flexDirection="row" flexGrow={1} marginRight={2}>
             <Text bold>Context</Text>
-            <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
-              {`  ${count} of ${formatTokens(threshold)}  `}
-            </Text>
+            <Text color={view.count.color}>{`  ${view.count.text}  `}</Text>
             <Box flexDirection="row" flexGrow={1} minWidth={BAR_CELLS} height={1} alignItems="center">
-              {barFills({ tokens: level, threshold, segments: rows }).map(fill => (
-                <Box flexGrow={fill.percent} height={barHeight} backgroundColor={fill.color} />
+              {view.fills.map(fill => (
+                <Box flexGrow={fill.grow} height={view.barHeight} backgroundColor={fill.color} />
               ))}
             </Box>
           </Box>
           <Button
             key="toggle"
             plain
-            label={expanded ? 'Hide' : 'Show'}
+            label={view.toggleLabel}
             onPress={() => update($, isExpanded, value => !value)}
           />
         </Box>
-        {expanded && rows === null && <Box marginTop={1}><Text dimColor>measuring…</Text></Box>}
-        {expanded && rows !== null && (
+        {view.details.state === 'measuring' && <Box marginTop={1}><Text dimColor>measuring…</Text></Box>}
+        {view.details.state === 'shown' && (
           <Box flexDirection="row" flexWrap="wrap" columnGap={2} marginTop={1}>
-            {rows.map(row => (
+            {view.details.rows.map(row => (
               <Box flexDirection="row" flexShrink={0} gap={1}>
                 <Text color={row.color}>■</Text>
                 <Text>{row.name}</Text>
-                <Text dimColor>{formatTokens(row.tokens)}</Text>
+                <Text dimColor>{row.tokens}</Text>
               </Box>
             ))}
           </Box>
