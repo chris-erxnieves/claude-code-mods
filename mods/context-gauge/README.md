@@ -5,12 +5,12 @@ A one-row bar above the Claude Code prompt that shows how much of the context wi
 The default comes from Matt Pocock's "smart zone": past roughly 150k tokens, models reason less sharply, so `/compact` at the next phase boundary rather than pushing on.
 
 ```
-Context  104k of 150k  ██████████████╲╲╲╲╲╲                    Show
-Context  163k of 150k  ████████████████████                    Show
+Context  104k of 150k  ██████████████████████████╲╲╲╲╲╲╲╲╲╲╲╲  Show
+Context  163k of 150k  ██████████████████████████████████████  Show
 ```
 
 - **Count** is **green** below 80% of the threshold, **yellow** from 80% to the threshold, **red** past it.
-- **Bar** is split by category color (see [Details](#details)), largest category first, each as wide as its share of usage against the threshold. The empty rest is a `subtle` `╲` hatch on an `inverseText` track. Segments are colored boxes sized by `flexGrow`, not glyphs, so the desktop app draws every edge to the pixel. Until the first breakdown arrives, the fill is solid `inactive`. Past the threshold the bar stays full; the red count is the only signal.
+- **Bar** is split by category color (see [Details](#details)), largest category first, each as wide as its share of usage against the threshold. It fills the row's free width, at least 20 cells, 2 cells short of `Show`. The empty rest is a `subtle` `╲` hatch on an `inverseText` track. Segments are colored boxes sized by `flexGrow`, not glyphs, so the desktop app draws every edge to the pixel. Until the first breakdown arrives, the fill is solid `inactive`. Past the threshold the bar stays full; the red count is the only signal.
 - **`—`** before the first response of a session and right after a compaction, until the next response reports a count.
 - **Toast** once when the session crosses the threshold. It fires again only after usage drops below 80% (say, after `/compact`) and climbs back over. The mod never compacts by itself.
 
@@ -19,7 +19,7 @@ Context  163k of 150k  ███████████████████
 `Show` lists each category using context, in the bar's order and colors, wrapping across rows as width allows:
 
 ```
-Context  124k of 150k  █████████████████╲╲╲                    Hide
+Context  124k of 150k  ███████████████████████████████╲╲╲╲╲╲╲  Hide
 ■ Messages 88k  ■ System tools 17k  ■ MCP tools 9k  ■ System prompt 3k
 ```
 
