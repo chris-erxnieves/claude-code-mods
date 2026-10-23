@@ -1,10 +1,11 @@
-import type { ThemeKey } from 'claude-code'
+import type { Color, ThemeKey } from 'claude-code'
 
 import type { Segment } from '../types'
 
 export const DEFAULT_THRESHOLD = 150_000
 export const BAR_CELLS = 20
 export const HATCH_CELLS = 512
+export const DESKTOP_BAR_HEIGHT = '85%'
 export const WARN_RATIO = 0.8
 
 export type Zone = 'ok' | 'warn' | 'over'
@@ -15,10 +16,10 @@ export const ZONE_COLOR = {
   over: 'error',
 } as const satisfies Record<Zone, ThemeKey>
 
-export const TRACK_COLOR: ThemeKey = 'inverseText'
-export const HATCH_COLOR: ThemeKey = 'subtle'
+export const TRACK_COLOR: ThemeKey = 'inactive'
+export const HATCH_COLOR: Color = '#bfbfbf'
 export const HATCH_GLYPH = '╲'
-export const PENDING_COLOR: ThemeKey = 'inactive'
+export const PENDING_COLOR: ThemeKey = 'subtle'
 
 export type Fill = { color: string; percent: number; isTrack: boolean }
 
