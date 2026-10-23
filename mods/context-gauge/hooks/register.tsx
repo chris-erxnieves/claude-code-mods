@@ -134,9 +134,9 @@ export const register: Register = (on, options) => {
             onPress={() => update($, isExpanded, value => !value)}
           />
         </Box>
-        {expanded && rows === null && <Text dimColor>  measuring…</Text>}
+        {expanded && rows === null && <Text dimColor>measuring…</Text>}
         {expanded && rows !== null && (
-          <Box flexDirection="row" flexWrap="wrap" columnGap={3} paddingLeft={2}>
+          <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
             {rows.map(row => (
               <Box flexDirection="row" flexShrink={0} gap={1}>
                 <Text color={row.color}>■</Text>
