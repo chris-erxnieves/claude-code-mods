@@ -15,9 +15,11 @@ export const ZONE_COLOR = {
 } as const satisfies Record<Zone, ThemeKey>
 
 export const TRACK_COLOR: ThemeKey = 'inverseText'
+export const HATCH_COLOR: ThemeKey = 'subtle'
+export const HATCH_GLYPH = '╲'
 export const PENDING_COLOR: ThemeKey = 'inactive'
 
-export type Fill = { color: string; percent: number }
+export type Fill = { color: string; percent: number; isTrack: boolean }
 
 type Level = { tokens: number; threshold: number }
 
@@ -38,18 +40,21 @@ export const barFills = ({
   const total = segments?.reduce((sum, segment) => sum + segment.tokens, 0) ?? 0
   const fills =
     segments?.length && total > 0
-      ? segments.map(segment => ({ color: segment.color, percent: (segment.tokens / total) * filled }))
-      : [{ color: PENDING_COLOR, percent: filled }]
+      ? segments.map(segment => ({
+          color: segment.color,
+          percent: (segment.tokens / total) * filled,
+          isTrack: false,
+        }))
+      : [{ color: PENDING_COLOR, percent: filled, isTrack: false }]
 
-  return [...fills, { color: TRACK_COLOR, percent: 100 - filled }].filter(fill => fill.percent > 0)
+  return [...fills, { color: TRACK_COLOR, percent: 100 - filled, isTrack: true }].filter(
+    fill => fill.percent > 0,
+  )
 }
 
 export const formatTokens = (tokens: number): string => {
   if (tokens < 1000) {
     return String(Math.round(tokens))
-  }
-  if (tokens < 100_000) {
-    return `${(tokens / 1000).toFixed(1).replace(/\.0$/, '')}k`
   }
   return `${Math.round(tokens / 1000)}k`
 }
