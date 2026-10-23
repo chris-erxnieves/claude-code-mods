@@ -20,7 +20,7 @@ Context  163k of 150k  ███████████████████
 
 ```
 Context  124k of 150k  █████████████████╲╲╲                    Hide
-  ■ Messages 88k   ■ System tools 17k   ■ MCP tools 9k   ■ System prompt 3k
+■ Messages 88k  ■ System tools 17k  ■ MCP tools 9k  ■ System prompt 3k
 ```
 
 Counts are whole numbers (`k` from 1,000 up).
