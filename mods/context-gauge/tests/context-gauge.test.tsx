@@ -70,17 +70,17 @@ test('the bar fills by category share of the used fraction', () => {
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments })).toEqual([
     { color: 'x', percent: 37.5, isTrack: false },
     { color: 'y', percent: 12.5, isTrack: false },
-    { color: 'inactive', percent: 50, isTrack: true },
+    { percent: 50, isTrack: true },
   ])
   expect(barFills({ tokens: 0, threshold: 150_000, segments })).toEqual([
-    { color: 'inactive', percent: 100, isTrack: true },
+    { percent: 100, isTrack: true },
   ])
 })
 
 test('the fill is one neutral color before the breakdown arrives', () => {
   const half = [
     { color: 'subtle', percent: 50, isTrack: false },
-    { color: 'inactive', percent: 50, isTrack: true },
+    { percent: 50, isTrack: true },
   ]
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: null })).toEqual(half)
   expect(barFills({ tokens: 75_000, threshold: 150_000, segments: [] })).toEqual(half)
@@ -124,26 +124,18 @@ test('the band shows a dash before the first response, then the count', async ($
     const boxes = await ui.findAll({ type: 'Box' })
     const weight = (color: string) =>
       Number(boxes.find(found => found.props.backgroundColor === color)?.props.flexGrow)
+    const height = surface === 'desktop' ? '85%' : 1
     const track = boxes.find(found =>
-      surface === 'desktop' ? found.props.borderStyle !== undefined : found.props.backgroundColor === 'inactive',
+      found.props.height === height && found.props.minWidth === undefined && found.props.backgroundColor === undefined,
     )
     expect(Math.round(weight('permission') + weight('promptBorder') + Number(track?.props.flexGrow))).toBe(100)
     expect(Math.round(Number(track?.props.flexGrow) * 1000)).toBe(30_667)
-    expect(track?.props.width).toBe(0)
-    expect(boxes.find(found => found.props.backgroundColor === 'permission')?.props.height).toBe(surface === 'desktop' ? '85%' : 1)
+    expect(track?.props.borderStyle).toBeUndefined()
+    expect(boxes.find(found => found.props.backgroundColor === 'permission')?.props.height).toBe(height)
     const bar = boxes.find(found => found.props.minWidth !== undefined)
     expect(bar?.props.minWidth).toBe(20)
     expect(bar?.props.flexGrow).toBe(1)
-    const hatch = await ui.find({ type: 'Text', text: /╲/ })
-    if (surface === 'desktop') {
-      expect(track?.props.borderStyle).toBe('single')
-      expect(track?.props.borderColor).toBe('inactive')
-      expect(track?.props.backgroundColor).toBeUndefined()
-      expect(hatch).toBeUndefined()
-    } else {
-      expect(hatch?.props.color).toBe('#bfbfbf')
-      expect([...(hatch?.text ?? '')]).toHaveLength(512)
-    }
+    expect(await ui.find({ type: 'Text', text: /╲/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }
