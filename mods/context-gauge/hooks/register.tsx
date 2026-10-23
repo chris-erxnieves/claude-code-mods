@@ -24,12 +24,6 @@ async function refreshSegments($: EngineInterface) {
   await update($, segments, () => rows)
 }
 
-async function toggleDetails($: EngineInterface) {
-  if (await update($, isExpanded, value => !value)) {
-    await refreshSegments($)
-  }
-}
-
 async function record(
   $: EngineInterface,
   { current, threshold }: { current: number | null; threshold: number },
@@ -50,9 +44,7 @@ async function record(
     }
   }
 
-  if (await read($, isExpanded)) {
-    await refreshSegments($)
-  }
+  await refreshSegments($)
 }
 
 export const register: Register = (on, options) => {
@@ -99,31 +91,30 @@ export const register: Register = (on, options) => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const current = await read($, tokens)
     const expanded = await read($, isExpanded)
-    const rows = expanded ? await read($, segments) : null
+    const rows = await read($, segments)
     const level = current ?? 0
-    const overflow = level - threshold
+    const count = (current === null ? '—' : formatTokens(current)).padStart(4)
     const nameWidth = Math.max(0, ...(rows ?? []).map(row => row.name.length))
 
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" justifyContent="space-between">
           <Box flexDirection="row">
+            <Text bold>Context</Text>
+            <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
+              {`  ${count} of ${formatTokens(threshold)}  `}
+            </Text>
             {barRuns({ tokens: level, threshold, segments: rows }).map(run => (
               <Text color={run.color} dimColor={run.isDim}>
                 {run.text}
               </Text>
             ))}
-            <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
-              {'  '}
-              {current === null ? '—' : formatTokens(current)} / {formatTokens(threshold)}
-            </Text>
-            {overflow > 0 && <Text color="error"> (+{formatTokens(overflow)})</Text>}
           </Box>
           <Button
             key="toggle"
             plain
-            label={expanded ? '▾ details' : '▸ details'}
-            onPress={() => toggleDetails($)}
+            label={expanded ? 'Hide' : 'Show'}
+            onPress={() => update($, isExpanded, value => !value)}
           />
         </Box>
         {expanded && rows === null && <Text dimColor>  measuring…</Text>}

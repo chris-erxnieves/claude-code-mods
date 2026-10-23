@@ -74,11 +74,33 @@ test('cells go by largest remainder and a sliver gets none', () => {
   expect(allocateCells({ segments, cells: 3 })).toEqual([2, 1, 0])
 })
 
-test('the bar overflows past the threshold, capped', () => {
-  const runs = barRuns({ tokens: 163_000, threshold: 150_000, segments: null })
-  expect(runs.map(run => run.text).join('')).toBe('█'.repeat(20) + '▌'.repeat(2))
-  const capped = barRuns({ tokens: 900_000, threshold: 150_000, segments: null })
-  expect(capped.map(run => run.text).join('').length).toBe(30)
+test('the bar fills by category, or with dim cells before the breakdown arrives', () => {
+  const segments = [
+    { name: 'a', color: 'x', tokens: 90_000 },
+    { name: 'b', color: 'y', tokens: 14_000 },
+  ]
+  expect(barRuns({ tokens: 104_000, threshold: 150_000, segments })).toEqual([
+    { text: '█'.repeat(12), color: 'x' },
+    { text: '██', color: 'y' },
+    { text: '░'.repeat(6), isDim: true },
+  ])
+  expect(barRuns({ tokens: 104_000, threshold: 150_000, segments: null })).toEqual([
+    { text: '▒'.repeat(14) + '░'.repeat(6), isDim: true },
+  ])
+})
+
+test('past the threshold the bar ends in a gap and one red nub', () => {
+  const text = (tokens: number) =>
+    barRuns({ tokens, threshold: 150_000, segments: null })
+      .map(run => run.text)
+      .join('')
+  expect(text(150_000)).toBe('▒'.repeat(20))
+  expect(text(163_000)).toBe('▒'.repeat(20) + ' ▌')
+  expect(text(900_000)).toBe('▒'.repeat(20) + ' ▌')
+  expect(barRuns({ tokens: 163_000, threshold: 150_000, segments: null }).at(-1)).toEqual({
+    text: '▌',
+    color: 'error',
+  })
 })
 
 test('token counts read short', () => {
@@ -95,7 +117,7 @@ test('the band shows a dash before the first response, then the count', async ($
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ ...BAND, surface })
-    expect((await ui.find({ type: 'Text', text: /\/ 150k/ }))?.text).toContain('— / 150k')
+    expect((await ui.find({ type: 'Text', text: /of 150k/ }))?.text).toContain('   — of 150k')
     await ui.unmount()
   }
 
@@ -104,9 +126,11 @@ test('the band shows a dash before the first response, then the count', async ($
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ ...BAND, surface })
-    const count = await ui.find({ type: 'Text', text: /\/ 150k/ })
-    expect(count?.text).toContain('104k / 150k')
+    const count = await ui.find({ type: 'Text', text: /of 150k/ })
+    expect(count?.text).toContain('104k of 150k')
     expect(count?.props.color).toBe('success')
+    expect((await ui.find({ type: 'Text', text: 'Context' }))?.props.bold).toBe(true)
+    expect((await ui.find({ type: 'Text', text: /█/ }))?.props.color).toBe('permission')
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }
@@ -121,15 +145,15 @@ test('details toggle a legend of used categories only', async ($, on) => {
     const ui = await $.ui.mount({ ...BAND, surface })
     await ui.press({ key: 'toggle' })
 
-    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('▾ details')
-    expect((await ui.find({ type: 'Text', text: /\/ 150k/ }))?.props.color).toBe('warning')
+    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Hide')
+    expect((await ui.find({ type: 'Text', text: /of 150k/ }))?.props.color).toBe('warning')
     const names = (await ui.findAll({ type: 'Text' })).map(found => found.text)
     expect(names.some(text => text.startsWith('System prompt'))).toBe(true)
     expect(names.some(text => text.startsWith('Messages'))).toBe(true)
     expect(names.some(text => /Free space|Autocompact|deferred/.test(text))).toBe(false)
 
     await ui.press({ key: 'toggle' })
-    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('▸ details')
+    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
     expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
     await ui.unmount()
   }
@@ -164,8 +188,8 @@ test('the threshold comes from the settings', { options: { threshold: 100_000 } 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  const count = await ui.find({ type: 'Text', text: /\/ 100k/ })
-  expect(count?.text).toContain('90k / 100k')
+  const count = await ui.find({ type: 'Text', text: /of 100k/ })
+  expect(count?.text).toContain(' 90k of 100k')
   expect(count?.props.color).toBe('warning')
   await ui.unmount()
 })

@@ -4,7 +4,6 @@ import type { Segment } from '../types'
 
 export const DEFAULT_THRESHOLD = 150_000
 export const BAR_CELLS = 20
-export const MAX_OVERFLOW_CELLS = 10
 export const WARN_RATIO = 0.8
 
 export type Zone = 'ok' | 'warn' | 'over'
@@ -28,7 +27,7 @@ export const zoneOf = ({ tokens, threshold }: Level): Zone => {
 }
 
 export const filledCells = ({ tokens, threshold }: Level): number =>
-  Math.min(BAR_CELLS + MAX_OVERFLOW_CELLS, Math.round((tokens / threshold) * BAR_CELLS))
+  Math.min(BAR_CELLS, Math.round((tokens / threshold) * BAR_CELLS))
 
 export const allocateCells = ({
   segments,
@@ -61,8 +60,6 @@ export const allocateCells = ({
   return counts
 }
 
-const glyphAt = (cell: number) => (cell < BAR_CELLS ? '█' : '▌')
-
 const mergeRuns = (cells: readonly Run[]): Run[] =>
   cells.reduce<Run[]>((runs, cell) => {
     const last = runs.at(-1)
@@ -80,15 +77,18 @@ export const barRuns = ({
   segments,
 }: Level & { segments: readonly Segment[] | null }): Run[] => {
   const filled = filledCells({ tokens, threshold })
-  const colors = segments?.length
+  const cells: Run[] = segments?.length
     ? allocateCells({ segments, cells: filled }).flatMap((count, index) =>
-        Array<string>(count).fill(segments[index]?.color ?? ''),
+        Array<Run>(count).fill({ text: '█', color: segments[index]?.color }),
       )
-    : Array<string>(filled).fill(ZONE_COLOR[zoneOf({ tokens, threshold })])
-  const cells: Run[] = colors.map((color, cell) => ({ text: glyphAt(cell), color }))
+    : Array<Run>(filled).fill({ text: '▒', isDim: true })
 
   for (let cell = filled; cell < BAR_CELLS; cell += 1) {
     cells.push({ text: '░', isDim: true })
+  }
+
+  if (zoneOf({ tokens, threshold }) === 'over') {
+    cells.push({ text: ' ' }, { text: '▌', color: ZONE_COLOR.over })
   }
 
   return mergeRuns(cells)

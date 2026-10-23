@@ -5,31 +5,33 @@ A one-row bar above the Claude Code prompt that shows how much of the context wi
 The default comes from Matt Pocock's "smart zone": past roughly 150k tokens, models reason less sharply, so `/compact` at the next phase boundary rather than pushing on.
 
 ```
- ██████████████░░░░░░  104k / 150k                    ▸ details
+Context  104k of 150k  ██████████████░░░░░░                    Show
+Context  163k of 150k  ████████████████████ ▌                  Show
 ```
 
-- **Green** below 80% of the threshold, **yellow** from 80% to the threshold, **red** past it. Past the threshold the bar grows overflow cells (`▌`) and shows `(+13k)`.
+- **Count** is **green** below 80% of the threshold, **yellow** from 80% to the threshold, **red** past it.
+- **Bar** is split by category color (see [Details](#details)), filling as usage approaches the threshold. Until the first breakdown arrives, filled cells are dim `▒`. Past the threshold the bar stays full and a red `▌` appears after a gap.
 - **`—`** before the first response of a session and right after a compaction, until the next response reports a count.
 - **Toast** once when the session crosses the threshold. It fires again only after usage drops below 80% (say, after `/compact`) and climbs back over. The mod never compacts by itself.
 
 ## Details
 
-`▸ details` redraws the bar in category colors and lists each category using context, in `/context` order:
+`Show` lists each category using context, in `/context` order, matching the bar's colors:
 
 ```
- ████████████▒▒▒░░░░░  124k / 150k                    ▾ details
+Context  124k of 150k  ████████████████░░░░                    Hide
    ■ System prompt     ~3.1k
    ■ System tools     ~17.1k
    ■ MCP tools         ~9.4k
    ■ Messages         ~88.2k
 ```
 
-The breakdown is a local estimate (`/context`'s `summary` mode), computed only while expanded and refreshed after each turn, so its rows need not add up to the live count. Free space and the autocompact buffer are left out, since the bar spans the threshold, not the window. Details start collapsed in every session.
+The breakdown is a local estimate (`/context`'s `summary` mode), refreshed after each turn, so its rows need not add up to the live count; the bar's length follows the live count and only its colors follow the breakdown. Free space and the autocompact buffer are left out, since the bar spans the threshold, not the window. Details start collapsed in every session.
 
 ## Settings
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `threshold` | `150000` | Tokens at which the bar fills and turns red. |
+| `threshold` | `150000` | Tokens at which the bar fills and the count turns red. |
 
 Change it in `/config`.
