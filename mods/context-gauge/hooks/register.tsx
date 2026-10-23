@@ -3,9 +3,10 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Segment } from '../types'
 import {
+  BAR_CELLS,
   DEFAULT_THRESHOLD,
   ZONE_COLOR,
-  barRuns,
+  barFills,
   evaluateAlert,
   formatTokens,
   zoneOf,
@@ -104,11 +105,11 @@ export const register: Register = (on, options) => {
             <Text color={current === null ? undefined : ZONE_COLOR[zoneOf({ tokens: level, threshold })]}>
               {`  ${count} of ${formatTokens(threshold)}  `}
             </Text>
-            {barRuns({ tokens: level, threshold, segments: rows }).map(run => (
-              <Text color={run.color} backgroundColor={run.backgroundColor} mono>
-                {run.text}
-              </Text>
-            ))}
+            <Box flexDirection="row" width={BAR_CELLS} height={1}>
+              {barFills({ tokens: level, threshold, segments: rows }).map(fill => (
+                <Box flexGrow={fill.percent} height={1} backgroundColor={fill.color} />
+              ))}
+            </Box>
           </Box>
           <Button
             key="toggle"
