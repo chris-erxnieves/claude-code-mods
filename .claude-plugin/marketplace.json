@@ -1,0 +1,11 @@
+{
+  "name": "chris-erxnieves-mods",
+  "owner": { "name": "Chris Erxnieves" },
+  "plugins": [
+    {
+      "name": "context-gauge",
+      "source": "./mods/context-gauge",
+      "description": "A context bar above the prompt that tracks usage against a 150k smart-zone threshold."
+    }
+  ]
+}
