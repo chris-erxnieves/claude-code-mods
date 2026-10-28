@@ -4,11 +4,10 @@ import type { TestBody } from 'claude-code/testing'
 
 import { bandView, formatTokens } from '../hooks/gauge'
 
-const SURFACES = ['terminal', 'desktop'] as const
-
 const BAND = {
   plugin: 'context-gauge',
   component: 'AbovePrompt',
+  surface: 'terminal',
   props: {
     hasSurvey: false,
     isWorking: false,
@@ -32,13 +31,16 @@ const SEGMENTS = [
   { name: 'b', color: 'y', tokens: 1_000 },
 ]
 
+// 69 columns less "Context", "   75k of 150k  ", the gap and "Show" leaves 40 bar cells.
+const FORTY_CELLS = 69
+
 const view = (overrides: Partial<Parameters<typeof bandView>[0]> = {}) =>
   bandView({
     tokens: 75_000,
     threshold: 150_000,
     segments: null,
     isExpanded: false,
-    surface: 'terminal',
+    columns: FORTY_CELLS,
     ...overrides,
   })
 
@@ -63,11 +65,15 @@ const engine = (on: On, state: { tokens?: number; toasts: string[] }) => {
   on('session.usage', (_, e) => ({
     value: usage({ tokens: state.tokens, withBreakdown: e?.breakdown !== undefined }),
   }))
+  on('command.register', () => ({ value: { command: 'context-gauge' } }))
   on('ui.toast', (_, e) => {
     state.toasts.push(e.text)
     return { value: undefined }
   })
 }
+
+const cellsOf = (bar: ReturnType<typeof view>['bar']) =>
+  bar.runs.reduce((sum, run) => sum + run.cells, 0) + bar.trackCells
 
 test('the count color turns at 80% and past the threshold', () => {
   expect(view({ tokens: 119_999 }).count.color).toBe('success')
@@ -83,32 +89,53 @@ test('the count reads a dash until a count is known', () => {
   expect(view({ tokens: 90_000, threshold: 100_000 }).count.text).toBe(' 90k of 100k')
 })
 
-test('the bar fills by segment share of the used fraction', () => {
-  expect(view({ segments: SEGMENTS }).fills).toEqual([
-    { color: 'x', grow: 37.5 },
-    { color: 'y', grow: 12.5 },
-    { grow: 50 },
-  ])
-  expect(view({ tokens: 0, segments: SEGMENTS }).fills).toEqual([{ grow: 100 }])
-  expect(view({ tokens: null, segments: SEGMENTS }).fills).toEqual([{ grow: 100 }])
+test('the bar takes the columns the label, count and toggle leave', () => {
+  expect(cellsOf(view().bar)).toBe(40)
+  expect(cellsOf(view({ columns: 120 }).bar)).toBe(91)
+  expect(cellsOf(view({ isExpanded: true }).bar)).toBe(40)
+  expect(cellsOf(view({ columns: 30 }).bar)).toBe(10)
+})
+
+test('the bar fills whole cells by segment share of the used fraction', () => {
+  expect(view({ segments: SEGMENTS }).bar).toEqual({
+    runs: [
+      { color: 'x', cells: 15 },
+      { color: 'y', cells: 5 },
+    ],
+    trackCells: 20,
+  })
+  expect(view({ tokens: 0, segments: SEGMENTS }).bar).toEqual({ runs: [], trackCells: 40 })
+  expect(view({ tokens: null, segments: SEGMENTS }).bar).toEqual({ runs: [], trackCells: 40 })
+})
+
+test('rounded runs add up to the filled cells exactly', () => {
+  const thirds = [
+    { name: 'a', color: 'x', tokens: 1 },
+    { name: 'b', color: 'y', tokens: 1 },
+    { name: 'c', color: 'z', tokens: 1 },
+  ]
+  for (const tokens of [10_000, 37_500, 75_000, 112_345, 149_999]) {
+    const { bar } = view({ tokens, segments: thirds })
+    expect(cellsOf(bar)).toBe(40)
+    expect(bar.trackCells).toBe(40 - Math.round((tokens / 150_000) * 40))
+  }
+})
+
+test('any usage shows at least one cell', () => {
+  expect(view({ tokens: 100 }).bar).toEqual({ runs: [{ color: 'subtle', cells: 1 }], trackCells: 39 })
 })
 
 test('the fill is one neutral color before the breakdown arrives', () => {
-  const half = [{ color: 'subtle', grow: 50 }, { grow: 50 }]
-  expect(view({ segments: null }).fills).toEqual(half)
-  expect(view({ segments: [] }).fills).toEqual(half)
+  const half = { runs: [{ color: 'subtle', cells: 20 }], trackCells: 20 }
+  expect(view({ segments: null }).bar).toEqual(half)
+  expect(view({ segments: [] }).bar).toEqual(half)
 })
 
 test('past the threshold the bar is full with no track', () => {
-  const full = [{ color: 'subtle', grow: 100 }]
-  expect(view({ tokens: 150_000 }).fills).toEqual(full)
-  expect(view({ tokens: 163_000 }).fills).toEqual(full)
-  expect(view({ tokens: 900_000 }).fills).toEqual(full)
-})
-
-test('the bar is a full row in the terminal and 85% on desktop', () => {
-  expect(view({ surface: 'terminal' }).barHeight).toBe(1)
-  expect(view({ surface: 'desktop' }).barHeight).toBe('85%')
+  const full = { runs: [{ color: 'subtle', cells: 40 }], trackCells: 0 }
+  expect(view({ tokens: 150_000 }).bar).toEqual(full)
+  expect(view({ tokens: 163_000 }).bar).toEqual(full)
+  expect(view({ tokens: 900_000 }).bar).toEqual(full)
 })
 
 test('details are hidden, measuring, or the formatted segments', () => {
@@ -136,34 +163,36 @@ test('the band shows a dash before the first response, then the count', async ($
   engine(on, state)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  let ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  let ui = await $.ui.mount(BAND)
   expect((await ui.find({ type: 'Text', text: /of 150k/ }))?.text).toContain('— of 150k')
   await ui.unmount()
 
   state.tokens = 104_000
   await $.session.measure({ context: usage({ tokens: 104_000, withBreakdown: false }).context, rateLimits: [], changed: ['context'] })
 
-  ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  ui = await $.ui.mount(BAND)
   expect((await ui.find({ type: 'Text', text: /of 150k/ }))?.text).toContain('104k of 150k')
   await ui.unmount()
 })
 
-test('the bar keeps its layout on each surface', async ($, on) => {
+test('the bar is drawn in category colors and fills the row to the toggle', async ($, on) => {
   const state: { tokens?: number; toasts: string[] } = { tokens: 104_000, toasts: [] }
   engine(on, state)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  for (const surface of SURFACES) {
-    const ui = await $.ui.mount({ ...BAND, surface })
-    const boxes = await ui.findAll({ type: 'Box' })
-    const bar = boxes.find(found => found.props.minWidth !== undefined)
-    expect(bar?.props.minWidth).toBe(20)
-    expect(bar?.props.flexGrow).toBe(1)
-    const fills = boxes.filter(found => found.props.height !== undefined && found.props.minWidth === undefined)
-    expect(fills.map(found => found.props.backgroundColor)).toEqual(['permission', 'promptBorder', undefined])
-    expect(fills.every(found => found.props.height === (surface === 'desktop' ? '85%' : 1))).toBe(true)
-    await ui.unmount()
-  }
+  const ui = await $.ui.mount(BAND)
+  const glyphs = await ui.findAll({ type: 'Text', text: /^[█░]+$/ })
+  const bar = glyphs.find(found => found.props.wrap !== undefined)
+  expect(bar?.text.length).toBe(80 - 'Context'.length - '  104k of 150k  '.length - 2 - 'Show'.length)
+  const runs = glyphs
+    .filter(found => found !== bar)
+    .map(found => ({ color: found.props.color, isDim: found.props.dimColor === true, glyph: found.text[0] }))
+  expect(runs).toEqual([
+    { color: 'permission', isDim: false, glyph: '█' },
+    { color: 'promptBorder', isDim: false, glyph: '█' },
+    { color: undefined, isDim: true, glyph: '░' },
+  ])
+  await ui.unmount()
 })
 
 test('details toggle the used categories, largest first', async ($, on) => {
@@ -171,25 +200,62 @@ test('details toggle the used categories, largest first', async ($, on) => {
   engine(on, state)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  for (const surface of SURFACES) {
-    const ui = await $.ui.mount({ ...BAND, surface })
-    await ui.press({ key: 'toggle' })
+  const ui = await $.ui.mount(BAND)
+  await ui.press({ key: 'toggle' })
 
-    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Hide')
-    const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
-    expect(texts.indexOf('Messages')).toBeGreaterThan(-1)
-    expect(texts.indexOf('Messages')).toBeLessThan(texts.indexOf('System prompt'))
-    expect(texts).toContain('88k')
-    expect(texts).toContain('3k')
-    expect(texts.some(text => /~|Free space|Autocompact|deferred/.test(text))).toBe(false)
-    const details = (await ui.findAll({ type: 'Box' })).find(found => found.props.flexWrap === 'wrap')
-    expect(details?.props.marginTop).toBe(1)
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Hide')
+  const texts = (await ui.findAll({ type: 'Text' })).map(found => found.text)
+  expect(texts.indexOf('Messages')).toBeGreaterThan(-1)
+  expect(texts.indexOf('Messages')).toBeLessThan(texts.indexOf('System prompt'))
+  expect(texts).toContain('88k')
+  expect(texts).toContain('3k')
+  expect(texts.some(text => /~|Free space|Autocompact|deferred/.test(text))).toBe(false)
+  const details = (await ui.findAll({ type: 'Box' })).find(found => found.props.flexWrap === 'wrap')
+  expect(details?.props.marginTop).toBe(1)
 
-    await ui.press({ key: 'toggle' })
-    expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
-    expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
-    await ui.unmount()
-  }
+  await ui.press({ key: 'toggle' })
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
+  expect(await ui.find({ type: 'Text', text: /■/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('/context-gauge toggles the details from the prompt', async ($, on) => {
+  const toggle = () =>
+    $.command.run({
+      command: 'context-gauge',
+      args: '',
+      origin: { kind: 'composer' },
+      presentation: { isFullscreen: false, columns: 80 },
+    })
+  const state: { tokens?: number; toasts: string[] } = { tokens: 124_000, toasts: [] }
+  engine(on, state)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+
+  expect(await toggle()).toMatchObject({ text: 'Context details shown.' })
+  let ui = await $.ui.mount(BAND)
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Hide')
+  expect(await ui.find({ type: 'Text', text: 'Messages' })).toBeDefined()
+  await ui.unmount()
+
+  expect(await toggle()).toMatchObject({ text: 'Context details hidden.' })
+  ui = await $.ui.mount(BAND)
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('Show')
+  await ui.unmount()
+})
+
+test('the band is drawn in the terminal only', async ($, on) => {
+  const state: { tokens?: number; toasts: string[] } = { tokens: 104_000, toasts: [] }
+  engine(on, state)
+  on('ui.render', ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>engine</Text>
+  })
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /of 150k/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: 'engine' }))?.text).toBe('engine')
+  await ui.unmount()
 })
 
 test('the toast fires once past the threshold and re-arms below 80%', async ($, on) => {
@@ -220,7 +286,7 @@ test('the threshold comes from the settings', { options: { threshold: 100_000 } 
   engine(on, state)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const ui = await $.ui.mount(BAND)
   const count = await ui.find({ type: 'Text', text: /of 100k/ })
   expect(count?.text).toContain(' 90k of 100k')
   expect(count?.props.color).toBe('warning')

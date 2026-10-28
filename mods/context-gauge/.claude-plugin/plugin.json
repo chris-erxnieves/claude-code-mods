@@ -1,6 +1,6 @@
 {
   "name": "context-gauge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A context bar above the prompt that tracks usage against a 150k smart-zone threshold.",
   "author": { "name": "Chris Erxnieves" },
   "license": "MIT",

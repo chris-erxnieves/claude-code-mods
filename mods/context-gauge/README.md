@@ -1,30 +1,32 @@
 # Context Gauge
 
-A one-row bar above the Claude Code prompt that shows how much of the context window the session is using, scaled to a threshold (150k tokens by default) rather than to the model's full window.
+A one-row bar above the Claude Code CLI prompt that shows how much context the session is using, scaled to a threshold (150k tokens by default) rather than to the model's full window.
 
 The default comes from Matt Pocock's "smart zone": past roughly 150k tokens, models reason less sharply, so `/compact` at the next phase boundary rather than pushing on.
 
 ```
-Context  104k of 150k  ██████████████████████████              Show
-Context  163k of 150k  ██████████████████████████████████████  Show
+Context  104k of 150k  ███████████████████████████████░░░░░░░░░░░░░░  Show
+Context  163k of 150k  ██████████████████████████████████████████████  Show
 ```
 
 - **Count** is **green** below 80% of the threshold, **yellow** from 80% to the threshold, **red** past it.
-- **Bar** is split by category color (see [Details](#details)), largest category first, each as wide as its share of usage against the threshold. It fills the row's free width, at least 20 cells, 2 cells short of `Show`. On desktop the bar is 85% of the row tall; the terminal keeps one full row. The empty rest is left blank. Segments are colored boxes sized by `flexGrow`, not glyphs, so the desktop app draws every edge to the pixel. Until the first breakdown arrives, the fill is solid `subtle`. Past the threshold the bar stays full; the red count is the only signal.
+- **Bar** fills the columns the label, count and toggle leave (at least 10). Each category gets a run of `█` in its color (see [Details](#details)), largest first, sized in whole cells by largest remainder so the runs always add up to the filled length. Any usage shows at least one cell. Until the first breakdown arrives, the fill is solid `subtle`. The rest of the bar is a dim `░` track, so the threshold's end is visible. Past the threshold the bar stays full; the red count is the only signal.
 - **`—`** before the first response of a session and right after a compaction, until the next response reports a count.
 - **Toast** once when the session crosses the threshold. It fires again only after usage drops below 80% (say, after `/compact`) and climbs back over. The mod never compacts by itself.
 
+The band draws in the terminal only. On other surfaces the mod passes and draws nothing.
+
 ## Details
 
-`Show` lists each category using context, in the bar's order and colors, wrapping across rows as width allows:
+`/context-gauge` shows or hides the list of categories using context. It runs at once, mid-turn too. The `Show`/`Hide` toggle does the same: click it in fullscreen mode, or focus the band with `ctrl+x tab` and press Enter.
 
 ```
-Context  124k of 150k  ███████████████████████████████         Hide
+Context  124k of 150k  █████████████████████████████████████░░░░░░░░  Hide
 
 ■ Messages 88k  ■ System tools 17k  ■ MCP tools 9k  ■ System prompt 3k
 ```
 
-Counts are whole numbers (`k` from 1,000 up).
+Counts are whole numbers (`k` from 1,000 up), in the bar's order and colors, wrapping across rows as width allows.
 
 The breakdown is a local estimate (`/context`'s `summary` mode), refreshed after each turn, so its rows need not add up to the live count; the bar's length follows the live count and only its colors follow the breakdown. Free space and the autocompact buffer are left out, since the bar spans the threshold, not the window. Details start collapsed in every session.
 
